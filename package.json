@@ -1,6 +1,6 @@
 {
   "name": "h6demo",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Zoom H6 multichannel streaming to WebAudio",
   "main": "index.js",
   "directories": {
