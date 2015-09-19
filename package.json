@@ -1,0 +1,29 @@
+{
+  "name": "h6demo",
+  "version": "1.0.0",
+  "description": "Zoom H6 multichannel streaming to WebAudio",
+  "main": "index.js",
+  "directories": {
+    "example": "examples",
+    "test": "test"
+  },
+  "scripts": {
+    "test": "make test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rodrigodzf/H6_DEMO.git"
+  },
+  "keywords": [
+    "webaudio",
+    "multichannel",
+    "headtracking",
+    "binaural"
+  ],
+  "author": "Rodrigo Diaz",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/rodrigodzf/H6_DEMO/issues"
+  },
+  "homepage": "https://github.com/rodrigodzf/H6_DEMO#readme"
+}
