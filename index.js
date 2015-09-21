@@ -109,9 +109,13 @@ function positionPanner() {
   // console.log(mouseX);
   panNode.setPosition(mouseX,mouseY,0);
 
-  var anglex = Math.radians(mouseX * 360);
+  var anglex = Math.radians(mouseX * -360);
 
   listener.setOrientation(Math.sin(anglex),0,Math.cos(anglex),0,1,0);
+  mesh.rotation.y = anglex;
+  // mesh.rotation.y = anglex * 10;
+
+  // console.log(mesh.rotation.z);
   // panNode.setVelocity(xVel,0,zVel);
   // pannerData.innerHTML = 'Panner data: X ' + xPos + ' Y ' + yPos + ' Z ' + zPos;
 }
@@ -134,10 +138,23 @@ function init() {
 
     scene = new THREE.Scene();
     scene.fog = new THREE.FogExp2( 0xcccccc, 0.002 );
-
+    // var loader = new THREE.OBJLoader();
+    // // load a resource
+    // loader.load(
+    //     // resource URL
+    //     'lib/WaltDisneyHeads/WaltDisneyHeads.obj',
+    //     // Function when resource is loaded
+    //     function ( object ) {
+    //         scene.add( object );
+    //     }
+    // );
     camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 1, 10000 );
     camera.position.z = 300; //from above
     camera.position.y = 300; //from above
+
+    light = new THREE.DirectionalLight( 0xffffff );
+      light.position.set( 0, 1, 0 ).normalize();
+      scene.add(light);
 
     controls = new THREE.TrackballControls( camera );
 
@@ -155,15 +172,39 @@ function init() {
 
     controls.addEventListener( 'change', render );
 
-    geometry = new THREE.SphereGeometry( 5, 16, 16 );
-    material = new THREE.MeshBasicMaterial( { color: 0xff0000, wireframe: true } );
+    geometry = new THREE.SphereGeometry( 5, 32, 16 );
 
+    // modify UVs to accommodate MatCap texture
+    var faceVertexUvs = geometry.faceVertexUvs[ 0 ];
+    for ( i = 0; i < faceVertexUvs.length; i ++ ) {
+
+        var uvs = faceVertexUvs[ i ];
+        var face = geometry.faces[ i ];
+
+        for ( var j = 0; j < 3; j ++ ) {
+
+            uvs[ j ].x = face.vertexNormals[ j ].x * 0.25 + 0.5;
+            uvs[ j ].y = face.vertexNormals[ j ].y * 0.25 + 0.5;
+            uvs[ j ].z = face.vertexNormals[ j ].z * 0.25 + 0.5;
+
+        }
+
+    }
+    // material = new THREE.MeshBasicMaterial( { color: 0xff0000, wireframe: true } );
+    material = new THREE.MeshPhongMaterial( {
+        color: 0xffffff,
+		ambient: 0xffffff,
+		specular: 0x050505,
+		shininess: 50,
+        map: THREE.ImageUtils.loadTexture('lib/compass.jpg') } );
 
     var cgeometry = new THREE.SphereGeometry( 2, 16, 16 );
     // var cmaterial =  new THREE.MeshPhongMaterial( { color:0xffffff, shading: THREE.FlatShading } );
 
 
     mesh = new THREE.Mesh( geometry, material );
+    // mesh.updateMatrix();
+    // mesh.matrixAutoUpdate = true;
     scene.add( mesh );
 
 
@@ -173,6 +214,11 @@ function init() {
         meshy.position.x = objects[i][0]
         meshy.position.y = objects[i][1]
         meshy.position.z = objects[i][2]
+
+        meshy.rotation.x = 0
+        meshy.rotation.y = 0
+        meshy.rotation.z = 0
+
         console.log(objects[i][0])
 
         // mesh.updateMatrix();
@@ -208,7 +254,7 @@ function animate() {
     // mesh.rotation.y += 0.02;
     controls.update();
     // controls.rotateCamera();
-    // renderer.render( scene, camera );
+    renderer.render( scene, camera );
 
 }
 
