@@ -1,5 +1,6 @@
 const Analyser = require('web-audio-analyser')
 const createCamera = require('perspective-camera')
+const THREE = require('three');
 const createLoop = require('raf-loop')
 const getContext = require('get-canvas-context')
 const lerp = require('lerp')
@@ -11,6 +12,7 @@ const soundcloud = require('soundcloud-badge')
 const urlJoin = require('url-join')
 const presets = require('./presets')
 const showError = require('./lib/error')
+const TrackballControls = require('./node_modules/three/TrackballControls')
 const assign = require('object-assign')
 const audioTestFile = 'ch6audio.ogg'
 
@@ -26,8 +28,10 @@ const loop = createLoop()
 let oldDiv, oldAudio
 
 //********************
-
+var camera, controls, scene, renderer, light;
+var geometry, material, mesh;
 //********************
+var objects;
 var soundSource;
 var soundBuffer;
 var splitter = audioContext.createChannelSplitter(6);
@@ -102,7 +106,7 @@ function updatePage(e) {
 //********************
 
 function positionPanner() {
-  console.log(mouseX);
+  // console.log(mouseX);
   panNode.setPosition(mouseX,mouseY,0);
 
   var anglex = Math.radians(mouseX * 360);
@@ -122,9 +126,100 @@ if (!AudioContext) {
   // printOptions()
   loadSound(audioTestFile)
 
-}
-//******************** !Main ********************
 
+}
+//******************** threejs ********************
+
+function init() {
+
+    scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2( 0xcccccc, 0.002 );
+
+    camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 1, 10000 );
+    camera.position.z = 300; //from above
+    camera.position.y = 300; //from above
+
+    controls = new THREE.TrackballControls( camera );
+
+    controls.rotateSpeed = 10.0;
+    controls.zoomSpeed = 1.2;
+    controls.panSpeed = 0.8;
+
+    controls.noZoom = false;
+    controls.noPan = true;
+
+    controls.staticMoving = true;
+    controls.dynamicDampingFactor = 0.3;
+
+    controls.keys = [ 65, 83, 68 ];
+
+    controls.addEventListener( 'change', render );
+
+    geometry = new THREE.SphereGeometry( 5, 16, 16 );
+    material = new THREE.MeshBasicMaterial( { color: 0xff0000, wireframe: true } );
+
+
+    var cgeometry = new THREE.SphereGeometry( 2, 16, 16 );
+    // var cmaterial =  new THREE.MeshPhongMaterial( { color:0xffffff, shading: THREE.FlatShading } );
+
+
+    mesh = new THREE.Mesh( geometry, material );
+    scene.add( mesh );
+
+
+    for (var i in objects){
+
+        var meshy = new THREE.Mesh( cgeometry, material );
+        meshy.position.x = objects[i][0]
+        meshy.position.y = objects[i][1]
+        meshy.position.z = objects[i][2]
+        console.log(objects[i][0])
+
+        // mesh.updateMatrix();
+        // mesh.matrixAutoUpdate = false;
+        scene.add(meshy);
+    }
+
+
+    // light = new THREE.DirectionalLight( 0xffffff );
+    // light.position.set( 1, 1, 1 );
+    // scene.add( light );
+    //
+    // light = new THREE.DirectionalLight( 0x002288 );
+    // light.position.set( -1, -1, -1 );
+    // scene.add( light );
+    //
+    // light = new THREE.AmbientLight( 0x222222 );
+    // scene.add( light );
+
+    renderer = new THREE.WebGLRenderer();
+    renderer.setClearColor( scene.fog.color );
+    renderer.setSize( window.innerWidth, window.innerHeight );
+
+    document.body.appendChild( renderer.domElement );
+
+}
+
+function animate() {
+
+    requestAnimationFrame( animate );
+
+    // mesh.rotation.x += 0.01;
+    // mesh.rotation.y += 0.02;
+    controls.update();
+    // controls.rotateCamera();
+    // renderer.render( scene, camera );
+
+}
+
+function render() {
+
+    renderer.render( scene, camera );
+    // stats.update();
+
+}
+
+ //******************** !Main ********************
 
 function loadTrack (opt) {
   if (oldAudio) oldAudio.pause()
@@ -338,6 +433,8 @@ function loadSound(url) {
         // playSound();
         setUpPanNodes();
         splitChannels();
+        init()
+        animate()
 
     }, onError);
   }
@@ -351,9 +448,11 @@ function setUpPanNodes() {
     var ls = pol2car(-110);
     var rs = pol2car(110);
     var fc = pol2car(0);
-    var sub = pol2car(0);
+    var sub = [10,0,-10];
 
-    console.log(rs[0],rs[1],rs[2]);
+    objects = [fl,fr,fc,ls,rs,sub];
+
+    // console.log(objects);
     panNodes[0].setPosition(fl[0],fl[1],fl[2]); // 0 - FL
     panNodes[1].setPosition(fr[0],fr[1],fr[2]); // 1 - FR
     panNodes[2].setPosition(ls[0],ls[1],ls[2]); // 2 - LS
