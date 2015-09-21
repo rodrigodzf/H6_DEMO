@@ -7,9 +7,6 @@
     "example": "examples",
     "test": "test"
   },
-  "scripts": {
-    "test": "make test"
-  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/rodrigodzf/H6_DEMO.git"
@@ -25,5 +22,36 @@
   "bugs": {
     "url": "https://github.com/rodrigodzf/H6_DEMO/issues"
   },
-  "homepage": "https://github.com/rodrigodzf/H6_DEMO#readme"
+  "homepage": "https://github.com/rodrigodzf/H6_DEMO#readme",
+  "devDependencies": {
+    "babelify": "^6.3.0",
+    "browserify": "^11.1.0",
+    "budo": "^4.2.1",
+    "garnish": "^3.2.0",
+    "uglify-js": "^2.4.24"
+  },
+  "scripts": {
+    "start": "budo index.js:bundle.js --live -- -t babelify | garnish",
+    "build": "browserify index.js -t babelify | uglifyjs -cm > bundle.js",
+    "test": "make test"
+  },
+  "dependencies": {
+      "canvas-fit": "^1.5.0",
+      "defined": "^1.0.0",
+      "domify": "^1.4.0",
+      "get-canvas-context": "^1.0.1",
+      "google-fonts": "0.0.0",
+      "insert-css": "^0.2.0",
+      "lerp": "^1.0.3",
+      "object-assign": "^4.0.1",
+      "once": "^1.3.2",
+      "perspective-camera": "^2.0.0",
+      "query-string": "^2.4.1",
+      "querystring": "^0.2.0",
+      "raf-loop": "^1.1.3",
+      "soundcloud-badge": "mattdesl/soundcloud-badge#feature/next",
+      "soundcloud-resolve": "mattdesl/soundcloud-resolve#fix/https",
+      "url-join": "0.0.1",
+      "web-audio-analyser": "^2.0.0"
+  }
 }
