@@ -12,6 +12,7 @@ const urlJoin = require('url-join')
 const presets = require('./presets')
 const showError = require('./lib/error')
 const assign = require('object-assign')
+const audioTestFile = 'ch6audio.ogg'
 
 const AudioContext = window.AudioContext || window.webkitAudioContext
 const audioContext = AudioContext ? new AudioContext() : null
@@ -24,11 +25,12 @@ const errMessage = 'Sorry, this demo only works in Chrome and FireFox!'
 const loop = createLoop()
 let oldDiv, oldAudio
 
+//********************
 
 //********************
 var soundSource;
 var soundBuffer;
-
+var splitter = audioContext.createChannelSplitter(6);
 //********************
 var panNode = audioContext.createPanner();
 panNode.panningModel = 'HRTF';
@@ -41,6 +43,26 @@ panNode.coneOuterAngle = 0;
 panNode.coneOuterGain = 0;
 panNode.setOrientation(1,0,0);
 panNode.connect(audioContext.destination)
+
+//***********
+
+var panNodes = [];
+for (var i = 0; i < 6; i++){
+
+    panNodes[i] = audioContext.createPanner();
+    panNodes[i].panningModel = 'HRTF';
+    panNodes[i].distanceModel = 'inverse';
+    panNodes[i].refDistance = 1;
+    panNodes[i].maxDistance = 10000;
+    panNodes[i].rolloffFactor = 1;
+    panNodes[i].coneInnerAngle = 360;
+    panNodes[i].coneOuterAngle = 0;
+    panNodes[i].coneOuterGain = 0;
+    // panNodes[i].setOrientation(1,0,0);
+    panNodes[i].connect(audioContext.destination)
+
+
+}
 
 //********************
 // Mouse pointer coordinates
@@ -64,8 +86,10 @@ function updatePage(e) {
     CurX = (window.Event) ? e.pageX : event.clientX + (document.documentElement.scrollLeft ? document.documentElement.scrollLeft : document.body.scrollLeft);
     CurY = (window.Event) ? e.pageY : event.clientY + (document.documentElement.scrollTop ? document.documentElement.scrollTop : document.body.scrollTop);
 
-    mouseX = ((CurX/WIDTH) - .5)* 10; // -0.5 - 0.5
-    mouseY = ((CurY/WIDTH) - .5)* 10; // -0.5 - 0.5
+    // mouseX = ((CurX/WIDTH) - .5)* 10; // -0.5 - 0.5
+    // mouseY = ((CurY/WIDTH) - .5)* 10; // -0.5 - 0.5
+    mouseX = (CurX/WIDTH); // 0 - 1
+    mouseY = (CurY/WIDTH); // 0 - 1
 
     // console.log(mouseX);
     // console.log(mouseY);
@@ -78,19 +102,29 @@ function updatePage(e) {
 //********************
 
 function positionPanner() {
-  // console.log(mouseX);
+  console.log(mouseX);
   panNode.setPosition(mouseX,mouseY,0);
+
+  var anglex = Math.radians(mouseX * 360);
+
+  listener.setOrientation(Math.sin(anglex),0,Math.cos(anglex),0,1,0);
   // panNode.setVelocity(xVel,0,zVel);
   // pannerData.innerHTML = 'Panner data: X ' + xPos + ' Y ' + yPos + ' Z ' + zPos;
 }
+
+//******************** Main ********************
 
 if (!AudioContext) {
   showError(errMessage)
 } else {
   global.load = loadTrack
-  loadTrack()
-  printOptions()
+  // loadTrack()
+  // printOptions()
+  loadSound(audioTestFile)
+
 }
+//******************** !Main ********************
+
 
 function loadTrack (opt) {
   if (oldAudio) oldAudio.pause()
@@ -278,18 +312,112 @@ function getTrackUrl (url) {
 
 //************************************** FILE **********************************
 
-function loadDogSound(url) {
+function loadSound(url) {
   var request = new XMLHttpRequest();
   request.open('GET', url, true);
   request.responseType = 'arraybuffer';
 
+  // create a sound sources
+  // for (var i = 0; i < 6; i++){
+  //     soundSource[i] = audioContext.createBufferSource();
+  // }
+
+  soundSource = audioContext.createBufferSource();
   // Decode asynchronously
   request.onload = function() {
-    context.decodeAudioData(request.response, function(buffer) {
+    audioContext.decodeAudioData(request.response, function(buffer) {
         soundSource.buffer = buffer;
+        // console.log(buffer.channelCount);
+        // splitSound(5);
+        // 0 - FL
+        // 1 - FR
+        // 2 - LS
+        // 3 - RS
+        // 4 - FC
+        // 5 - Sub
+        // playSound();
+        setUpPanNodes();
+        splitChannels();
+
     }, onError);
   }
   request.send();
+}
+
+function setUpPanNodes() {
+
+    var fl = pol2car(-30);
+    var fr = pol2car(30);
+    var ls = pol2car(-110);
+    var rs = pol2car(110);
+    var fc = pol2car(0);
+    var sub = pol2car(0);
+
+    console.log(rs[0],rs[1],rs[2]);
+    panNodes[0].setPosition(fl[0],fl[1],fl[2]); // 0 - FL
+    panNodes[1].setPosition(fr[0],fr[1],fr[2]); // 1 - FR
+    panNodes[2].setPosition(ls[0],ls[1],ls[2]); // 2 - LS
+    panNodes[3].setPosition(rs[0],rs[1],rs[2]); // 3 - RS
+    panNodes[4].setPosition(fc[0],fc[1],fc[2]); // 4 - FC
+    panNodes[5].setPosition(sub[0],sub[1],fl[2]); // 5 - Sub
+
+    listener.setPosition(0,0,0);
+
+
+}
+
+// Converts from degrees to radians.
+Math.radians = function(degrees) {
+  return degrees * Math.PI / 180;
+};
+
+// Converts from radians to degrees.
+Math.degrees = function(radians) {
+  return radians * 180 / Math.PI;
+};
+
+function pol2car(angle) {
+    var r = -10;
+    var x = r * Math.cos(Math.radians(angle + 90));
+    var y = 0;
+    var z = r * Math.sin(Math.radians(angle + 90));
+    return [x,y,z];
+
+}
+
+
+
+
+function splitChannels() {
+
+    soundSource.connect(splitter);
+    for (var i = 0; i < 6; i++){
+        splitter.connect(panNodes[i], i);
+    }
+    soundSource.start(0);
+
+}
+
+function panChannelsToLayout() {
+
+
+
+}
+
+
+function splitSound(channelIndex) {
+
+    soundSource.connect(splitter);
+    splitter.connect(audioContext.destination, channelIndex);
+    soundSource.start(0);
+
+}
+
+function playSound() {
+
+    soundSource.connect(audioContext.destination);
+    soundSource.start(audioContext.currentTime);
+
 }
 
 //************************************** MIC **********************************
@@ -301,7 +429,7 @@ function gotStream(stream) {
 
     // Create an AudioNode from the stream.
     var mediaStreamSource = audioContext.createMediaStreamSource( stream );
-    console.log(mediaStreamSource.channelCount);
+    //console.log(mediaStreamSource.channelCount);
 
     // Connect it to the destination to hear yourself (or any other node for processing!)
     mediaStreamSource.connect( panNode );
@@ -327,10 +455,10 @@ function gotStream(stream) {
 
     // renderTrack(panNode, opt)
 }
-function error() {
+function onError() {
     alert('Stream generation failed.');
 }
-
+function getMic() {
 navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia;
 navigator.getUserMedia( {
             "audio": {
@@ -342,6 +470,7 @@ navigator.getUserMedia( {
                 },
                 "optional": []
             },
-        }, gotStream, error );
+        }, gotStream, onError );
 
+}
 //!************************************** MIC **********************************
