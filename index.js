@@ -1,3 +1,6 @@
+$(document).ready(function () {
+  //your code here
+
 const Analyser = require('web-audio-analyser')
 const createCamera = require('perspective-camera')
 const THREE = require('three');
@@ -13,8 +16,12 @@ const urlJoin = require('url-join')
 const presets = require('./presets')
 const showError = require('./lib/error')
 const TrackballControls = require('./node_modules/three/TrackballControls')
-const assign = require('object-assign')
-const audioTestFile = 'ch6audio.ogg'
+const assign = require('object-assign');
+const knob = require('jquery-knob');
+const BinauralFIR = require('./lib/binauralFIR/binaural-fir')
+// const HRTFSDATA = require('./lib/binauralFIR/examples/snd/complete_hrtfs.js');
+
+const audioTestFile = './audio/ch6audio.ogg'
 
 const AudioContext = window.AudioContext || window.webkitAudioContext
 const audioContext = AudioContext ? new AudioContext() : null
@@ -25,7 +32,63 @@ document.body.style.overflow = 'hidden'
 
 const errMessage = 'Sorry, this demo only works in Chrome and FireFox!'
 const loop = createLoop()
-let oldDiv, oldAudio
+let oldDiv, oldAudio;
+
+
+// DASH***************************
+
+var videoElement = document.createElement('video');
+document.body.appendChild(videoElement);
+
+MediaPlayer.dependencies.BufferExtensions.DEFAULT_MIN_BUFFER_TIME = 1;
+var dashContext = new Dash.di.DashContext();
+var player = new MediaPlayer(dashContext);
+
+player.startup();
+
+//player.setAutoSwitchQuality(true)
+player.attachView(videoElement);
+player.setAutoPlay(false);
+// player.attachSource('http://dash.edgesuite.net/digitalprimates/fraunhofer/480p_video/heaac_2_0_with_video/ElephantsDream/elephants_dream_480p_heaac2_0.mpd');
+// player.attachSource('http://rdmedia.bbc.co.uk/dash/ondemand/testcard/1/client_manifest-events.mpd');
+player.attachSource('http://dash.edgesuite.net/digitalprimates/fraunhofer/480p_video/heaac_5_1_with_video/6chId/6chId_480p_heaac5_1.mpd');
+// http://dash.edgesuite.net/digitalprimates/fraunhofer/audio_only/heaac_2_0_without_video/ElephantsDream/elephants_dream_audio_only_heaac2_0.mpd
+// http://www.digitalprimates.net/dash-demo/index.html?version=dev
+// player.play();
+// player.setCurrentTrack(1);
+// player.setTrackSwitchModeFor('ALWAYS_REPLACE', 'audio');
+//********************
+// $(".vs1").val(0);
+// //Listeners of the knobs
+// $(".vs1").knob({
+//     'change': function(v) {
+//         // binauralFIRNode.setPosition(v, binauralFIRNode.getPosition().elevation, binauralFIRNode.getPosition().distance);
+//         console.log(v);
+//     }
+// });
+
+var FIRNode = [];
+
+$('.vs1').on("input", function(evt) {
+    // if (binauralFIRNode) {
+    if (FIRNode){
+        for (var i = 0; i < 6; i++){
+            FIRNode[i].setPosition(FIRNode[i].getPosition().azimuth + evt.target.value / 1, 0, 1);
+
+            // var newAzi = FIRNode[i].getPosition().azimuth
+            // console.log((newAzi) += evt.target.value / 1);
+            // console.log(FIRNode[i].getPosition().azimuth);
+        }
+    }
+    // listener.setOrientation(Math.sin(evt.target.value),0,Math.cos(evt.target.value),0,1,0);
+});
+
+$('.vs3').on("input", function(evt) {
+    if (binauralFIRNode) {
+        binauralFIRNode.setPosition(binauralFIRNode.getPosition().azimuth, evt.target.value, binauralFIRNode.getPosition().distance);
+    }
+});
+
 
 //********************
 var camera, controls, scene, renderer, light;
@@ -77,7 +140,9 @@ var CurX;
 var CurY;
 var mouseX = 0;
 var mouseY = 0;
-
+var mouseTracking = false;
+var graphics = false;
+var binauralFIRNode;
 var listener = audioContext.listener;
 // listener.setOrientation(0,0,-1,0,1,0);
 
@@ -87,17 +152,22 @@ var listener = audioContext.listener;
 document.onmousemove = updatePage;
 
 function updatePage(e) {
-    CurX = (window.Event) ? e.pageX : event.clientX + (document.documentElement.scrollLeft ? document.documentElement.scrollLeft : document.body.scrollLeft);
-    CurY = (window.Event) ? e.pageY : event.clientY + (document.documentElement.scrollTop ? document.documentElement.scrollTop : document.body.scrollTop);
 
-    // mouseX = ((CurX/WIDTH) - .5)* 10; // -0.5 - 0.5
-    // mouseY = ((CurY/WIDTH) - .5)* 10; // -0.5 - 0.5
-    mouseX = (CurX/WIDTH); // 0 - 1
-    mouseY = (CurY/WIDTH); // 0 - 1
+    if (mouseTracking){
 
-    // console.log(mouseX);
-    // console.log(mouseY);
-    positionPanner()
+        CurX = (window.Event) ? e.pageX : event.clientX + (document.documentElement.scrollLeft ? document.documentElement.scrollLeft : document.body.scrollLeft);
+        CurY = (window.Event) ? e.pageY : event.clientY + (document.documentElement.scrollTop ? document.documentElement.scrollTop : document.body.scrollTop);
+
+        // mouseX = ((CurX/WIDTH) - .5)* 10; // -0.5 - 0.5
+        // mouseY = ((CurY/WIDTH) - .5)* 10; // -0.5 - 0.5
+        mouseX = (CurX/WIDTH); // 0 - 1
+        mouseY = (CurY/WIDTH); // 0 - 1
+
+        // console.log(mouseX);
+        // console.log(mouseY);
+        positionPanner()
+
+    }
 
     // gainNode.gain.value = (CurY/HEIGHT) * maxVol;
 
@@ -105,16 +175,89 @@ function updatePage(e) {
 }
 //********************
 
+function initBFIR() {
+    // HRTF files loading
+    for (var i = 0; i < hrtfs.length; i++) {
+        var buffer = audioContext.createBuffer(2, 512, 44100);
+        var bufferChannelLeft = buffer.getChannelData(0);
+        var bufferChannelRight = buffer.getChannelData(1);
+        for (var e = 0; e < hrtfs[i].fir_coeffs_left.length; e++) {
+            bufferChannelLeft[e] = hrtfs[i].fir_coeffs_left[e];
+            bufferChannelRight[e] = hrtfs[i].fir_coeffs_right[e];
+        }
+        hrtfs[i].buffer = buffer;
+    }
+
+    //Create Audio Nodes
+    var audio = document.getElementsByTagName('video');
+    audio = audio[0];
+    audio.controls = "true";
+    // var mediaElement = document.getElementById('source');
+    var audioPlayer = audioContext.createMediaElementSource(audio);
+    // binauralFIRNode = new BinauralFIR({
+    //     audioContext: audioContext
+    // });
+    // //Set HRTF dataset
+    // // binauralFIRNode.HRTFDataset = hrtfs;
+    // //Connect Audio Nodes
+    // // audioPlayer.connect(binauralFIRNode.input);
+    // // binauralFIRNode.connect(audioContext.destination);
+    // // binauralFIRNode.setPosition(0, 0, 1);
+    // audio.setCurrentTrack(1);
+    // audio.play();
+    // panChannelsToLayoutHEAAC(audioPlayer);
+    // splitSound(audioPlayer,4);
+    setUpPanNodesFIR(audioPlayer, hrtfs);
+
+}
+
+function setUpPanNodesFIR(source, hrtfdata) {
+
+
+
+    var fl = -30;
+    var fr = 30;
+    var fc = 0;
+    var ls = -110;
+    var rs = 110;
+    var sub = -90;
+
+    source.connect(splitter);
+
+
+
+    for (var i = 0; i < 6; i++){
+
+        FIRNode[i] = new BinauralFIR({
+        audioContext: audioContext
+    });
+        FIRNode[i].HRTFDataset = hrtfdata;
+        splitter.connect(FIRNode[i].input, i);
+        FIRNode[i].connect(audioContext.destination);
+    }
+
+    // These are azimuth, elevation, distance so polar 3d
+    FIRNode[0].setPosition(fl,0,1);
+    FIRNode[1].setPosition(fr,0,1);
+    FIRNode[2].setPosition(fc,0,1);
+    FIRNode[3].setPosition(sub,0,1);
+    FIRNode[4].setPosition(ls,0,1);
+    FIRNode[5].setPosition(rs,0,1);
+
+}
+//********************
+
 function positionPanner() {
-  // console.log(mouseX);
   panNode.setPosition(mouseX,mouseY,0);
-
   var anglex = Math.radians(mouseX * -360);
+  // console.log(anglex);
 
-  listener.setOrientation(Math.sin(anglex),0,Math.cos(anglex),0,1,0);
-  mesh.rotation.y = anglex;
+  // listener.setOrientation(Math.sin(anglex),0,Math.cos(anglex),0,1,0);
+  // binauralFIRNode.setPosition(mouseX * 100, binauralFIRNode.getPosition().elevation, binauralFIRNode.getPosition().distance);
+  if (graphics){
+      mesh.rotation.y = anglex;
+  }
   // mesh.rotation.y = anglex * 10;
-
   // console.log(mesh.rotation.z);
   // panNode.setVelocity(xVel,0,zVel);
   // pannerData.innerHTML = 'Panner data: X ' + xPos + ' Y ' + yPos + ' Z ' + zPos;
@@ -128,9 +271,11 @@ if (!AudioContext) {
   global.load = loadTrack
   // loadTrack()
   // printOptions()
-  // loadSound(audioTestFile)
 
-  getMic();
+  // loadSound(audioTestFile);
+  // getMic();
+  // mouseTracking = true;
+  initBFIR();
 
 
 }
@@ -525,15 +670,12 @@ Math.degrees = function(radians) {
 
 function pol2car(angle) {
     var r = -10;
-    var x = r * Math.cos(Math.radians(angle + 90));
+    var x = r * Math.cos((Math.PI / 180) * (angle + 90));
     var y = 0;
-    var z = r * Math.sin(Math.radians(angle + 90));
+    var z = r * Math.sin((Math.PI / 180) * (angle + 90));
     return [x,y,z];
 
 }
-
-
-
 
 function splitChannels() {
 
@@ -545,18 +687,39 @@ function splitChannels() {
 
 }
 
-function panChannelsToLayout() {
 
+function panChannelsToLayoutHEAAC(source) {
+    // 0 - L
+    // 1 - R;
+    // 2 - C;
+    // 3 - sub;
+    // 4 - ls
+    // 5 - rs
+    setUpPanNodes();
+    source.connect(splitter);
+    splitter.connect(panNodes[0], 0);
+    splitter.connect(panNodes[1], 1);
+    splitter.connect(panNodes[4], 2);
+    splitter.connect(panNodes[5], 3);
+    splitter.connect(panNodes[2], 4);
+    splitter.connect(panNodes[3], 5);
+}
 
+function panChannelsToLayout(source) {
+    setUpPanNodes();
+    source.connect(splitter);
+    for (var i = 0; i < 6; i++){
+        splitter.connect(panNodes[i], i);
+    }
 
 }
 
 
-function splitSound(channelIndex) {
+function splitSound(source,channelIndex) {
 
-    soundSource.connect(splitter);
+    source.connect(splitter);
     splitter.connect(audioContext.destination, channelIndex);
-    soundSource.start(0);
+    // soundSource.start(0);
 
 }
 
@@ -627,3 +790,4 @@ navigator.getUserMedia( {
 
 }
 //!************************************** MIC **********************************
+});

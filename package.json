@@ -52,6 +52,8 @@
       "soundcloud-badge": "mattdesl/soundcloud-badge#feature/next",
       "soundcloud-resolve": "mattdesl/soundcloud-resolve#fix/https",
       "url-join": "0.0.1",
-      "web-audio-analyser": "^2.0.0"
+      "web-audio-analyser": "^2.0.0",
+      "dashjs": "^1.1.1",
+      "jquery": "2.1.4"
   }
 }

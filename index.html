@@ -2,11 +2,37 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>my-module</title>
+    <title>H6_DEMO</title>
     <link href='http://fonts.googleapis.com/css?family=Roboto+Slab' rel='stylesheet' type='text/css'>
-    <link rel="stylesheet" type="text/css" href="style.css">
+    <!-- <link rel="stylesheet" type="text/css" href="style.css"> -->
+    <style type="text/css">
+    input[type=range][orient=vertical]
+    {
+        writing-mode: bt-lr; /* IE */
+        -webkit-appearance: slider-vertical; /* WebKit */
+        width: 8px;
+        height: 175px;
+        padding: 0 5px;
+    }
+    </style>
 </head>
 <body>
+    <!-- <script src="./lib/binauralFIR/examples/js/jquery-1.11.1.min.js"></script> -->
+    <!-- <script src="./lib/binauralFIR/examples/js/jquery.knob.js"></script> -->
+    <!-- <script src="./node_modules/jquery-knob/dist/jquery.knob.min.js"></script> -->
+    <script src="./node_modules/jquery/dist/jquery.min.js"></script>
+    <script src="./lib/binauralFIR/examples/snd/complete_hrtfs.js"></script>
+    <script src="./node_modules/dashjs/index.js"></script>
+
     <script src="bundle.js"></script>
+
+    <center>
+        <pre> Azimuth </pre>
+        <!-- <input type="text" data-angleOffset=180 class="vs1" data-width="180" data-cursor=true data-thickness=".5"  data-min="-180" data-max="180" data-rotation="clockwise" /> -->
+        <input type="range" min="-180" max="180" step="1" class="vs1" />
+        <!-- <input type="text" value="75" class="dial"> -->
+        <pre> Elevation </pre>
+        <input type="range" min="-90" max="90" step="0.5" class="vs3" />
+    </center>
 </body>
 </html>
