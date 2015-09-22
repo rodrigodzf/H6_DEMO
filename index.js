@@ -128,7 +128,9 @@ if (!AudioContext) {
   global.load = loadTrack
   // loadTrack()
   // printOptions()
-  loadSound(audioTestFile)
+  // loadSound(audioTestFile)
+
+  getMic();
 
 
 }
@@ -574,13 +576,18 @@ function gotStream(stream) {
 
     // Create an AudioNode from the stream.
     var mediaStreamSource = audioContext.createMediaStreamSource( stream );
-    //console.log(mediaStreamSource.channelCount);
+    mediaStreamSource.channelCount = 6;
+    // inputNode.channelCountMode = 'discrete';
+    console.log(mediaStreamSource.channelCount);
 
     // Connect it to the destination to hear yourself (or any other node for processing!)
-    mediaStreamSource.connect( panNode );
+    // mediaStreamSource.connect( panNode );
 
-
-
+    setUpPanNodes();
+    mediaStreamSource.connect( splitter );
+    for (var i = 0; i < 6; i++){
+        splitter.connect(panNodes[i], i);
+    }
     // var opt = presets[Math.floor(Math.random() * presets.length)]
     //
     //
@@ -608,6 +615,7 @@ navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia;
 navigator.getUserMedia( {
             "audio": {
                 "mandatory": {
+                    "echoCancellation": "false",
                     "googEchoCancellation": "true",
                     "googAutoGainControl": "false",
                     "googNoiseSuppression": "false",
